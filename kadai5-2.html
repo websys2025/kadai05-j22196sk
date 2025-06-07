@@ -1,22 +1,57 @@
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="utf-8">
-    <title>演習課題5-2：外部APIの呼び出しテスト</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>郵便番号API + 緯度経度取得</title>
 </head>
 <body>
-    <h1 id="msg">何かのAPI</h1>
-    <form name="apiform"><p>
-        何かのフォーム：<input type="text" name="form_data">
-        <button type="button" id="btn1" onclick="some_api(this.form)">実行</button>
-    </p></form>
-    
-    <div id="result"></div>
-    <script>
-        async function some_api(myForm) {
-            // ここにコードを書く
-            document.getElementById("result").innerHTML += myForm.form_data.value+"<br />";
-            document.apiform.reset();
+<h1 id="msg">郵便番号から住所と緯度・経度を取得</h1>
+<form name="apiform">
+    <p>
+    郵便番号：<input type="text" name="zipcode">
+    <button type="button" id="btn1" onclick="zip_api(this.form)">実行</button>
+    </p>
+</form>
+
+<div id="result">結果はここに表示</div>
+
+<script>
+    async function zip_api(myForm) {
+    const endpoint = "https://zipcloud.ibsnet.co.jp/api/search";
+    const zipcode = myForm.zipcode.value;
+    const response = await fetch(`${endpoint}?zipcode=${zipcode}`);
+    const data = await response.json();
+
+    if (data.results) {
+        const addressObj = data.results[0];
+        const address = addressObj.address1 + addressObj.address2 + addressObj.address3;
+
+        // Nominatimを使って緯度経度を取得
+        const geoResponse = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json`, {
+        headers: {
+            'User-Agent': 'example-postcode-app' // Nominatimの必須仕様
         }
-    </script>
+        });
+        const geoData = await geoResponse.json();
+
+        if (geoData.length > 0) {
+        const lat = geoData[0].lat;
+        const lon = geoData[0].lon;
+
+        document.getElementById("result").innerHTML = `
+            <p><strong>住所：</strong>${address}</p>
+            <p><strong>緯度：</strong>${lat}</p>
+            <p><strong>経度：</strong>${lon}</p>
+        `;
+        } else {
+        document.getElementById("result").innerHTML = `<p>住所「${address}」の位置情報が見つかりませんでした。</p>`;
+        }
+
+    } else {
+        document.getElementById("result").innerHTML = `<p>郵便番号が見つかりませんでした。</p>`;
+    }
+    }
+</script>
 </body>
 </html>
